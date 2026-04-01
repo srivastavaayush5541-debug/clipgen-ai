@@ -19,11 +19,16 @@ try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
+      console.log('🔐 Login - Email:', user.email, 'Verified:', user.emailVerified);
+      
       if (!user.emailVerified) {
-        await sendEmailVerificationFn(user);
-        setError('Please verify your email first. Check your inbox or click Resend below.');
+        setError('Please verify your email first. Check inbox/spam or click Resend.');
         return;
       }
+      
+      // Reload for latest verification status
+      await user.reload();
+      console.log('🔄 Post-reload verified:', user.emailVerified);
       
       localStorage.setItem('user', JSON.stringify(user));
       setPage('home');
@@ -74,18 +79,21 @@ try {
           <button
             type="button"
             onClick={async () => {
+              if (!auth.currentUser) {
+                setError('Please login first.');
+                return;
+              }
               setLoading(true);
               try {
-                const userCredential = await signInWithEmailAndPassword(auth, email, '');
-                await sendEmailVerificationFn(userCredential.user);
-                setError('Resend verification email sent! Check your inbox.');
+                await sendEmailVerificationFn(auth.currentUser);
+                setError('✅ Verification email sent to ' + auth.currentUser.email);
               } catch (err) {
-                setError('Resend failed. Please login first.');
+                setError('Failed to send. Try logging out and in.');
               } finally {
                 setLoading(false);
               }
             }}
-            disabled={loading || !email}
+            disabled={loading || !auth.currentUser}
             className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded-xl text-sm font-medium transition-all"
           >
             Resend Verification Email

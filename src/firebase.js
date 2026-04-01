@@ -2,12 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAJdMPT2ERjUHsKNdkXWt_Dpk_Wvv-Zp70",
-  authDomain: "clipgen-ai-22bba.firebaseapp.com",
-  projectId: "clipgen-ai-22bba",
-  storageBucket: "clipgen-ai-22bba.firebasestorage.app",
-  messagingSenderId: "55215051410",
-  appId: "1:55215051410:web:83518c8c6f08c72e74cc4b"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: "clipgen-ai-f9f86.firebaseapp.com",
+  projectId: "clipgen-ai-f9f86",
+  storageBucket: "clipgen-ai-f9f86.firebasestorage.app",
+  messagingSenderId: "738767095896",
+  appId: "1:738767095896:web:07e2eaad504883a59d622d"
 };
 
 const app = initializeApp(firebaseConfig);

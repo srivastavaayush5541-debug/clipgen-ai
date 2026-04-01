@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, sendEmailVerificationFn } from '../firebase';
+import { auth } from '../firebase';
+import { sendEmailVerificationFn } from '../firebase';
 
 const Signup = ({ setPage }) => {
   const [email, setEmail] = useState('');
@@ -30,29 +31,30 @@ try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      // Send verification email
-      await sendEmailVerificationFn(user);
+      console.log('✅ User created:', user.uid, user.email);
       
-      localStorage.setItem('user', email);
-      
-// Send welcome email via backend (simple {email} format)
+      // Send verification email with detailed config
       try {
-        const emailResponse = await fetch('http://127.0.0.1:5000/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        
-        if (!emailResponse.ok) {
-          console.log('Backend email API error');
-        }
-      } catch (emailErr) {
-        console.log('Welcome email failed:', emailErr);
+        await sendEmailVerificationFn(user);
+        console.log('✅ Verification email sent for:', user.email);
+      } catch (verifyErr) {
+        console.error('❌ Verification email failed:', verifyErr.code, verifyErr.message);
+        setError('Account created but verification email failed. Please contact support.');
       }
       
-      setError('Account created! Verification email sent. Please check your inbox.');
-      // Don't auto redirect - wait for verification
-      // setPage('home');
+      // Success message
+      setError('✅ Account created! Check inbox/spam for verification link.');
+      
+      // Optional: Welcome email via backend
+      try {
+        await fetch('http://localhost:5000/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, subject: 'Welcome to ClipGen AI!' })
+        });
+      } catch (emailErr) {
+        console.log('Welcome email failed (non-critical):', emailErr);
+      }
     } catch (err) {
       if (err.code === 'auth/email-already-in-use') {
         setError('Email already in use. Please login instead.');

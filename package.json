@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "backend": "cd backend && node server.js",
-    "start": "concurrently \"npm run backend\" \"npm run dev\"",
+"dev": "vite",
+    "backend": "cd backend && npm start",
+    "start": "concurrently \"npm run backend\" \"npm run dev\" --kill-others-on-fail --success first",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
