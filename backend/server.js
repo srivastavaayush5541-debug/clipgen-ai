@@ -27,8 +27,68 @@ app.get('/', (req, res) => {
   res.json({ 
     status: 'OK', 
     openaiReady: !!openai,
+    razorpayReady: !!process.env.RAZORPAY_KEY_ID,
     timestamp: new Date().toISOString()
   });
+});
+
+// ✅ FIXED RAZORPAY ORDER API - TOP LEVEL ROUTE
+app.post('/create-order', async (req, res) => {
+  try {
+    const { amount } = req.body;
+    
+    console.log('📥 Amount received:', amount);
+    
+    if (!amount || isNaN(amount) || amount <= 0) {
+      console.log('❌ Invalid amount:', amount);
+      return res.status(400).json({ error: 'Valid positive number amount required' });
+    }
+
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      console.error('❌ Razorpay env vars missing');
+      return res.status(500).json({ error: 'Razorpay not configured (check Render dashboard)' });
+    }
+
+    const Razorpay = require('razorpay');
+    
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+
+    const amountInPaise = Math.round(Number(amount) * 100);
+    
+    console.log(`💳 Creating Razorpay order: ₹${amount} = ${amountInPaise} paise`);
+
+    const order = await razorpay.orders.create({
+      amount: amountInPaise,
+      currency: 'INR',
+      receipt: `clipgen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    });
+
+    console.log('✅ Order created successfully:', order.id);
+
+    res.json({
+      id: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      status: order.status
+    });
+
+  } catch (error) {
+    console.error('💥 Razorpay Error Details:');
+    console.error('- Message:', error.message);
+    console.error('- Code:', error.code);
+    console.error('- Status:', error.statusCode);
+    console.error('- Description:', error.description);
+    
+    res.status(500).json({ 
+      error: 'Order creation failed',
+      message: error.message,
+      code: error.code,
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    });
+  }
 });
 
 // ✅ SECURE /generate endpoint
@@ -95,9 +155,10 @@ app.use('*', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📝 POST /generate with {prompt: "your prompt"}`);
-  console.log(`🔍 Health: http://localhost:${PORT}/`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`💳 Razorpay: POST /create-order {amount: 500}`);
+  console.log(`🤖 OpenAI: POST /generate {prompt: '...'} `);
+  console.log(`🔍 Health: GET /`);
 });
 
 module.exports = app;

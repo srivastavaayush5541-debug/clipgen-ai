@@ -35,56 +35,85 @@ const Subscription = ({ upgradePlan, plan }) => {
     }
   ];
 
+
 const handleUpgrade = async (planName) => {
     try {
-      const res = await fetch('http://localhost:5000/create-order', {
+      // Step 1: Create order on backend
+      const res = await fetch('https://clipgen-ai.onrender.com/create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: 'demo-user', plan: planName })
+        headers: { 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ 
+          amount: 500 // ₹500 in INR (change based on plan)
+        })
       });
       
       const data = await res.json();
-      if (!data.orderId) throw new Error('Order failed');
       
-      // Razorpay checkout
+      if (!data.success || !data.id) {
+        throw new Error(data.error || 'Order creation failed');
+      }
+
+      // Step 2: Open Razorpay checkout
       const options = {
-        key: 'rzp_test_yourkey', // Replace with real key
-        amount: data.amount,
-        currency: 'INR',
+        key: 'rzp_test_your-actual-key-id', // Replace with your test/live key
+        amount: data.amount, // In paise from backend
+        currency: data.currency, // 'INR'
         name: 'ClipGen AI',
         description: `${planName.toUpperCase()} Upgrade`,
-        order_id: data.orderId,
-        handler: async (response) => {
-          const verifyRes = await fetch('http://localhost:5000/verify-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              payment_id: response.razorpay_payment_id,
-              order_id: response.razorpay_order_id,
-              signature: response.razorpay_signature,
-              userId: 'demo-user',
-              plan: planName
-            })
-          });
+        order_id: data.id, // Backend order ID
+        handler: async function (response) {
+          console.log('✅ Payment Success:', response);
           
-          const verifyData = await verifyRes.json();
-          if (verifyData.success) {
-            upgradePlan(planName); // Update UI
-            alert(`Upgraded to ${planName.toUpperCase()}! 🎉`);
-          } else {
-            alert('Payment failed - contact support');
+          // Optional: Verify payment on backend
+          try {
+            const verifyRes = await fetch('https://clipgen-ai.onrender.com/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+            
+            const verifyData = await verifyRes.json();
+            
+            if (verifyData.success) {
+              upgradePlan(planName);
+              alert(`🎉 Upgraded to ${planName.toUpperCase()} successfully!`);
+            } else {
+              alert('Payment received but verification failed');
+            }
+          } catch (verifyErr) {
+            console.error('Verification failed:', verifyErr);
+            alert('Payment successful! (Verification pending)');
           }
         },
-        prefill: { name: 'Demo User' },
-        theme: { color: '#6c5ce7' }
+        prefill: { 
+          name: 'Customer Name',
+          email: 'customer@example.com'
+        },
+        theme: { 
+          color: '#6c5ce7' 
+        },
+        modal: {
+          ondismiss: function() {
+            alert('Payment cancelled');
+          }
+        }
       };
       
       const rzp = new window.Razorpay(options);
       rzp.open();
+      
     } catch (err) {
+      console.error('Payment Error:', err);
       alert('Payment setup failed: ' + err.message);
     }
   };
+
 
   return (
     <div className="min-h-screen py-20 px-4 bg-gradient-to-b from-slate-50 to-blue-50">
